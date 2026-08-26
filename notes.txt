@@ -1,0 +1,63 @@
+Terraform
+=============
+->What is terraform
+	terraform is infrastructure as code tool that lets you build ,build, change and 
+	version infrastructure safely and efficiently.
+	(to create / provision infrastructure in cloude platform )
+==>develop by Hashicorp
+==>supports all the popular cloude provider
+==>it use HCL to code
+	hcl:hashicorp configuration Language
+==>it save with .tf extention
+
+
+=============================
+Terraform Architechture
+=======================
+
+terraform init -> terraform fmt -> terraform validate -> terraform plan -> terraform apply ->terraform destroy
+
+==>terraform init --> To Initialize terraform script
+
+==>terraform fmt --> Format terraform script ident spacing ( it will get script in   
+	proper order )	
+
+==>terraform validate --> Terraform script syntax will be verified ( validated )
+
+==>terraform plan --> Creates Execution plan for terraform script
+
+==>terraform apply --> Creates actual resources in cloud based on given plan
+
+==>terraform destroy -->  It will destroy / delete the resource which got created in cloud
+AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY_ID"
+AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY"
+
+
+-----
+Ami
+------
+==>AMI stands for Amazon Machine Image.
+	->Think of an AMI as a template/image of a computer that AWS uses to create an EC2 	
+		server.
+	->Simple example
+		->When you buy a new laptop, you need an operating system:
+					Laptop
+  			  		  ↓
+			Install Windows / Linux / macOS
+==>With EC2:
+					 EC2
+                      ↓
+                 Choose an AMI
+                      ↓
+         AWS creates the server using that AMI
+==>An AMI can contain things like:
+	->Operating system
+	->Pre-installed software
+	->System configuration
+	->Required files
+For example:
+Amazon Linux 2023 AMI
+        ↓
+       EC2
+        ↓
+Amazon Linux 2023 server
