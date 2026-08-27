@@ -1,0 +1,7 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+.env
+*.pem
+.DS_Store
+
