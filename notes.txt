@@ -69,3 +69,27 @@ Terraform State file
   updated or destroyed
 =>used to compare desired configratution (.ts file) with the actual deployed 
   resource.
+
+input output variable in terraform
+===================================
+==> Input Variables are used to supply data/values to our terraform script
+Instance type
+ami value
+keypair
+
+==> Output Variables are used to get values of certain important data after terraform script is executed
+ example: After S3 bucket created, print bucket info
+          After IAM user got created print IAM user info
+          After ec2 server created print public or private ip
+
+
+Terraform Taint and untaint
+===========================
+Taint=>you can taint a resource to using teraform taint to mark it as needing to be re created during next terraform apply (means resource need for redeployment).
+command=>terraform taint aws_instance.linux.vm
+
+untaint=>using terraform untaint, you can remove the taint from resources so it will not be recreated and will stay the as it is in next apply.
+command=>terraform untaint aws_instance.linux.vm
+
+
+
