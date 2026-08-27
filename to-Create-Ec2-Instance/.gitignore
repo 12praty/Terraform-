@@ -1,0 +1,14 @@
+.env
+*.pem
+*.key
+.terraform/
+terraform.tfstate
+terraform.tfstate.*
+.DS_Store
+imp.txt
+
+.env
+*.pem
+terraform.tfstate
+terraform.tfstate.*
+.terraform/
