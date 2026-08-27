@@ -61,3 +61,11 @@ Amazon Linux 2023 AMI
        EC2
         ↓
 Amazon Linux 2023 server
+
+
+Terraform State file
+=====================
+=>store the correct form of infrastructure so terraform knows what been created 
+  updated or destroyed
+=>used to compare desired configratution (.ts file) with the actual deployed 
+  resource.
