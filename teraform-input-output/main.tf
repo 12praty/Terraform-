@@ -27,3 +27,4 @@ resource "aws_instance" "telsko_ec2" {
     Name = "telsko-ec2"
   }
 }
+

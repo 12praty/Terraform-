@@ -93,15 +93,3 @@ resource "aws_instance" "server" {
     Name = "terraform-ec2"
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
