@@ -92,4 +92,16 @@ untaint=>using terraform untaint, you can remove the taint from resources so it 
 command=>terraform untaint aws_instance.linux.vm
 
 
+Terraform Module
+================
+=>A terraform module is a set of Terraform Configuration files in a single 
+  directory
 
+=>Single Directory with one or more .tf files can be considered as a module
+
+=>One Root module can have any number of child modules in terraform
+	example : Inside one project or module we can create multiple child modules ex2,s3,vpc........
+
+
+=>Note : We will be running terraform commands from root module and root module 
+	will invoke child modules for execution
