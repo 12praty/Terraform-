@@ -105,3 +105,98 @@ Terraform Module
 
 =>Note : We will be running terraform commands from root module and root module 
 	will invoke child modules for execution
+
+
+Lock file in terraform 
+=======================
+
+==> The .terraform.lock.hcl file, which is created or updated when you run terraform init ,
+contains specific information about the providers used in your configuration. It's a dependency lock file that ensures consistent and reproducible deployments.
+
+
+Workspace
+
+Environments of the projects
+==========================
+It refers to the platform that is required to run our app 
+( servers, database, storage, network, tools, softwares...)
+
+One Project may contain multiple env
+ex: DEV, SIT, UAT, Pre_prod, PROD 
+
+It allows you to manage multiple distinct environments (like development, staging, and production) with the same Terraform configuration code. 
+This prevents you from needing to duplicate your entire codebase for each environment.
+
+Terraform workspace commands
+================================
+
+$ terraform workspace new dev
+
+Creates and switches to a new workspace.
+
+Example: terraform workspace new dev creates a new workspace named dev and makes it the active one.
+
+==================
+
+$ terraform workspace select prod
+
+Switches to an existing workspace.
+
+Example: terraform workspace select production switches to the production workspace.
+
+===================
+
+$ terraform workspace list
+
+Lists all available workspaces
+
+================
+
+$ terraform workspace show 
+
+Prints the name of the current workspace.
+
+
+============================
+
+Workspaces are most powerful when combined with variables. You can use a single configuration and change resource attributes (like instance size or database name) by using different variable values for each workspace.
+
+dev.tfvars
+instance_type = "t2.micro"
+
+
+qa.tfvars
+
+instance_type = "t2.medium"
+
+
+prod.tfvars
+
+instance_type = "t2.large"
+
+=========================
+==> main.tf
+
+provider "aws" {
+  region = "ap-south-1"
+}
+
+variable "instance_type" {
+  description = "instance_type of ec2"
+}
+
+resource "aws_instance" "linux_vm" {
+
+  ami             = "ami-0d54604676873b4ec"
+  instance_type   = var.instance_type
+  key_name        = "terraform-kp"
+  security_groups = ["default"]
+  tags = {
+    Name = "Telusko2-Server"
+  }
+}
+
+
+
+$ terraform apply --var-file=qa.tfvars
+
