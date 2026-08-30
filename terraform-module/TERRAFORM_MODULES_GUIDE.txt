@@ -1,0 +1,408 @@
+TERRAFORM MODULES: A DETAILED GUIDE TO THIS PROJECT
+====================================================
+
+1. WHAT THIS PROJECT DOES
+-------------------------
+This Terraform project creates two AWS resources:
+
+  1. An EC2 virtual machine (server)
+  2. An S3 storage bucket
+
+It is deliberately divided into Terraform modules. A module is a folder of
+Terraform code that handles one focused responsibility. Think of a module as a
+reusable function:
+
+  - You give it inputs.
+  - It creates or manages infrastructure.
+  - It can return outputs.
+
+In this project:
+
+  Root configuration          Child modules
+  ------------------          -------------
+  main.tf              --->   modules/ec2
+                              modules/s3
+
+The root configuration decides WHICH modules to use and supplies their values.
+Each child module contains the resource definition for its own AWS service.
+
+
+2. DIRECTORY STRUCTURE
+----------------------
+
+terraform-module/
+|
+|-- provider.tf              AWS provider and provider version
+|-- variables.tf             Inputs for the root configuration
+|-- main.tf                  Calls the EC2 and S3 modules
+|-- output.tf                Values exposed after Terraform applies changes
+|
+`-- modules/
+    |-- ec2/
+    |   |-- main.tf          EC2 resource definition
+    |   |-- input.tf         Inputs expected by the EC2 module
+    |   `-- output.tf        Values returned by the EC2 module
+    |
+    `-- s3/
+        |-- main.tf          S3 resource definition
+        |-- input.tf         Inputs expected by the S3 module
+        `-- output.tf        Values returned by the S3 module
+
+Terraform does not require the filenames main.tf, variables.tf, or output.tf.
+It loads all .tf files in a folder together. These names are conventions that
+make the code easier for people to navigate.
+
+
+3. THE ROOT MODULE
+------------------
+The folder you run `terraform init`, `terraform plan`, and `terraform apply`
+from is called the root module. In this project, that is the terraform-module
+folder itself.
+
+The root module has four jobs:
+
+  1. Set up Terraform and the AWS provider.
+  2. Accept configuration values, such as the AWS region.
+  3. Call the child modules and pass them inputs.
+  4. Display useful values after resources are created.
+
+
+4. provider.tf: CONNECTING TERRAFORM TO AWS
+-------------------------------------------
+provider.tf contains two different blocks.
+
+First, the terraform block declares that this project needs the AWS provider:
+
+  terraform {
+    required_providers {
+      aws = {
+        source  = "hashicorp/aws"
+        version = "~> 6.0"
+      }
+    }
+  }
+
+`hashicorp/aws` is the official provider package name. Terraform downloads it
+when you run `terraform init`.
+
+The version constraint `~> 6.0` means Terraform can use AWS provider versions
+starting at 6.0, including compatible 6.x updates, but it will not automatically
+move to 7.0. Version constraints help avoid unexpected breaking changes.
+
+Second, the provider block configures AWS:
+
+  provider "aws" {
+    region = var.aws_region
+  }
+
+`var.aws_region` means: "read the value of the aws_region variable." The AWS
+provider uses this region for resources unless a resource or module explicitly
+uses a different provider configuration.
+
+Terraform still needs AWS credentials. Normally these come from a configured
+AWS CLI profile, environment variables, or an IAM role. Credentials should NOT
+be written directly into Terraform files or committed to Git.
+
+
+5. variables.tf: ROOT INPUTS
+----------------------------
+variables.tf declares this root-level input:
+
+  variable "aws_region" {
+    description = "AWS region in which to create the resources."
+    type        = string
+  }
+
+This declaration does not assign a value. It describes the value Terraform
+expects. You can provide it in several ways:
+
+  Command line:
+    terraform plan -var='aws_region=ap-south-1'
+
+  A terraform.tfvars file:
+    aws_region = "ap-south-1"
+
+  An environment variable:
+    export TF_VAR_aws_region="ap-south-1"
+
+For beginners, terraform.tfvars is often the most convenient option. Do not put
+secrets in a tfvars file that is committed to a shared repository.
+
+
+6. main.tf: CALLING THE EC2 MODULE
+----------------------------------
+The EC2 module call is:
+
+  module "ec2" {
+    source        = "./modules/ec2"
+    ami_id        = "ami-06a83a7a581c729a9"
+    instance_type = "t3.micro"
+    name          = "My_server"
+  }
+
+`module "ec2"` gives this module instance a local name: ec2. Later, the root
+module can refer to values it returns with expressions such as
+`module.ec2.instance_id`.
+
+`source = "./modules/ec2"` tells Terraform where to find the module. The `./`
+means the path begins from the root module directory. This is a local module.
+
+The remaining arguments are inputs to the child module. The child module must
+declare variables with matching names:
+
+  Root module argument         EC2 module variable
+  --------------------         -------------------
+  ami_id                 --->  var.ami_id
+  instance_type          --->  var.instance_type
+  name                   --->  var.name
+
+This separation is valuable because the EC2 module can be used again with
+different input values, without copying its resource code.
+
+
+7. modules/ec2: HOW THE EC2 MODULE WORKS
+----------------------------------------
+The variables in modules/ec2/input.tf define the contract of the module:
+
+  variable "ami_id" { type = string }
+  variable "instance_type" { type = string }
+  variable "name" { type = string }
+
+The module expects all three strings. Since none has a default value, the caller
+must pass all three.
+
+modules/ec2/main.tf creates the actual AWS instance:
+
+  resource "aws_instance" "server" {
+    ami           = var.ami_id
+    instance_type = var.instance_type
+
+    tags = {
+      Name = var.name
+    }
+  }
+
+`resource "aws_instance" "server"` has two names:
+
+  - aws_instance: the AWS provider resource type.
+  - server: the Terraform-local resource name.
+
+Together they form the resource address inside the EC2 module:
+
+  aws_instance.server
+
+The resource obtains its values from variables:
+
+  var.ami_id        -> selected machine image
+  var.instance_type -> EC2 size, for example t3.micro
+  var.name          -> value of the AWS Name tag
+
+IMPORTANT: AMI IDs are region-specific. The AMI currently written in main.tf
+must exist in the aws_region you choose. If it does not, `terraform plan` or
+`terraform apply` will fail. In real projects, use a validated AMI for each
+region or find an AMI dynamically with a data source.
+
+modules/ec2/output.tf returns the created instance ID:
+
+  output "instance_id" {
+    value = aws_instance.server.id
+  }
+
+This gives the root module access to the EC2 instance identifier.
+
+
+8. main.tf: CALLING THE S3 MODULE
+---------------------------------
+The S3 module call is:
+
+  module "s3" {
+    source = "./modules/s3"
+
+    bucket_name = "pratyush-terraform-s3-20260830"
+  }
+
+It follows exactly the same module pattern as EC2:
+
+  1. source identifies the module folder.
+  2. bucket_name is passed into the module.
+  3. The module creates the S3 bucket.
+  4. The module returns an output.
+
+
+9. modules/s3: HOW THE S3 MODULE WORKS
+---------------------------------------
+modules/s3/input.tf declares:
+
+  variable "bucket_name" {
+    type = string
+  }
+
+modules/s3/main.tf creates the bucket:
+
+  resource "aws_s3_bucket" "bucket" {
+    bucket = var.bucket_name
+  }
+
+The Terraform resource address inside this module is:
+
+  aws_s3_bucket.bucket
+
+modules/s3/output.tf returns its ID:
+
+  output "bucket_id" {
+    value = aws_s3_bucket.bucket.id
+  }
+
+S3 bucket names are globally unique across AWS. If another AWS account already
+uses the specified bucket name, creation will fail. Use a unique suffix, such
+as your account ID, project name, or a random value.
+
+
+10. ROOT OUTPUTS: USING MODULE OUTPUTS
+--------------------------------------
+The root output.tf contains:
+
+  output "instance_id" {
+    value = module.ec2.instance_id
+  }
+
+  output "bucket_id" {
+    value = module.s3.bucket_id
+  }
+
+The left side names the root outputs. The right side reads outputs from the
+modules:
+
+  module.ec2.instance_id  -> EC2 module's output "instance_id"
+  module.s3.bucket_id     -> S3 module's output "bucket_id"
+
+After `terraform apply`, Terraform prints these values. You can also view them
+later with:
+
+  terraform output
+
+or one output only:
+
+  terraform output instance_id
+
+
+11. FULL FLOW OF VALUES
+-----------------------
+
+  You provide:
+    aws_region = "ap-south-1"
+          |
+          v
+  provider "aws" uses that region
+          |
+          v
+  Root main.tf calls EC2 and S3 modules
+          |
+          +--> EC2 input values --> aws_instance.server --> instance_id output
+          |
+          `--> S3 input value  --> aws_s3_bucket.bucket --> bucket_id output
+          |
+          v
+  Root output.tf displays module.ec2.instance_id and module.s3.bucket_id
+
+
+12. TERRAFORM COMMANDS TO USE
+-----------------------------
+Run these commands from the root project folder.
+
+1. Initialize the project:
+
+  terraform init
+
+This downloads the AWS provider and prepares the local module source.
+
+2. Check formatting (optional but recommended):
+
+  terraform fmt -check
+
+To automatically format files:
+
+  terraform fmt
+
+3. Validate Terraform syntax and internal references:
+
+  terraform validate
+
+4. Preview changes without creating anything:
+
+  terraform plan -var='aws_region=ap-south-1'
+
+Read this carefully. It tells you which resources Terraform intends to add,
+change, or destroy.
+
+5. Create the resources:
+
+  terraform apply -var='aws_region=ap-south-1'
+
+Terraform will ask for confirmation. Type `yes` only after reviewing the plan.
+
+6. Remove resources when you no longer need them:
+
+  terraform destroy -var='aws_region=ap-south-1'
+
+Destroying removes the EC2 instance and S3 bucket. Be especially careful with
+S3: a bucket that contains objects may require objects to be deleted first.
+
+
+13. WHY MODULES ARE USEFUL
+--------------------------
+Modules provide:
+
+  - Reuse: use the same EC2 configuration for development, test, and production.
+  - Consistency: every caller gets the same baseline settings and conventions.
+  - Organization: EC2 details stay separate from S3 details.
+  - Easier maintenance: improve a module once, then reuse that improvement.
+  - Clear interfaces: variables are inputs; outputs are returned results.
+
+For example, another EC2 instance could reuse the module:
+
+  module "app_server" {
+    source        = "./modules/ec2"
+    ami_id        = "another-valid-ami-id"
+    instance_type = "t3.small"
+    name          = "app-server"
+  }
+
+This creates another instance using the same module design.
+
+
+14. RECOMMENDED NEXT IMPROVEMENTS
+---------------------------------
+The current code is a good learning example. For safer, more reusable real-world
+infrastructure, consider these improvements:
+
+  - Move hard-coded values from root main.tf into variables.tf and terraform.tfvars.
+  - Add descriptions to every child-module variable and output.
+  - Add AWS tags such as Environment, Project, and ManagedBy = "Terraform".
+  - Add an EC2 security group and specify a VPC subnet deliberately.
+  - Configure S3 versioning, encryption, public-access blocking, and ownership
+    controls according to your requirements.
+  - Use a remote state backend (for example, S3 plus state locking) for team use.
+  - Pin and regularly update Terraform/provider versions after testing.
+
+Do not add settings merely because they are common: choose them based on the
+security, cost, and availability needs of your project.
+
+
+15. KEY WORDS TO REMEMBER
+-------------------------
+
+  Provider  : Plugin that lets Terraform manage a platform, such as AWS.
+  Resource  : One infrastructure object Terraform manages, such as an EC2
+              instance or S3 bucket.
+  Module    : A reusable collection of Terraform files/resources.
+  Variable  : An input value, referenced with var.NAME.
+  Output    : A returned value, referenced from a caller as module.NAME.OUTPUT.
+  State     : Terraform's record of the real resources it manages.
+  Plan      : Terraform's preview of proposed changes.
+
+The central pattern in this repository is:
+
+  Root module passes values -> child module uses var.* -> child module exposes
+  output -> root module accesses it through module.<name>.<output>.
+
